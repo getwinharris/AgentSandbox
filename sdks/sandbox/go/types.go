@@ -152,8 +152,9 @@ type CreateSandboxRequest struct {
 	Image           *ImageSpec             `json:"image,omitempty"`
 	SnapshotID      string                 `json:"snapshotId,omitempty"`
 	Timeout         *int                   `json:"timeout,omitempty"`
-	ResourceLimits  ResourceLimits         `json:"resourceLimits"`
-	Env             map[string]string      `json:"env,omitempty"`
+	ResourceLimits   ResourceLimits         `json:"resourceLimits"`
+	ResourceRequests ResourceLimits         `json:"resourceRequests,omitempty"`
+	Env              map[string]string      `json:"env,omitempty"`
 	SecureAccess    bool                   `json:"secureAccess,omitempty"`
 	Metadata        map[string]string      `json:"metadata,omitempty"`
 	Entrypoint      []string               `json:"entrypoint,omitempty"`
