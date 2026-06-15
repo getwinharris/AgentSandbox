@@ -78,6 +78,7 @@ from opensandbox_server.services.sandbox_service import SandboxService
 from opensandbox_server.services.validators import (
     ensure_entrypoint,
     ensure_egress_configured,
+    ensure_egress_runtime_compatible,
     ensure_future_expiration,
     ensure_metadata_labels,
     ensure_platform_valid,
@@ -254,10 +255,12 @@ class KubernetesSandboxService(K8sDiagnosticsMixin, SandboxService, ExtensionSer
     def _ensure_network_policy_support(self, request: CreateSandboxRequest) -> None:
         """
         Validate that network policy can be honored under the current runtime config.
-        
-        This validates that egress.image is configured when network_policy is provided.
+
+        This validates that egress.image is configured when network_policy is provided,
+        and that the secure runtime supports the iptables nat table needed by the sidecar.
         """
         ensure_egress_configured(request.network_policy, self.app_config.egress)
+        ensure_egress_runtime_compatible(request.network_policy, self.app_config.secure_runtime)
 
     def _ensure_image_auth_support(self, request: CreateSandboxRequest) -> None:
         """

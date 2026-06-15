@@ -31,7 +31,7 @@ from opensandbox_server.services.constants import RESERVED_LABEL_PREFIX, Sandbox
 
 if TYPE_CHECKING:
     from opensandbox_server.api.schema import NetworkPolicy, OSSFS, PlatformSpec, Volume
-    from opensandbox_server.config import EgressConfig
+    from opensandbox_server.config import EgressConfig, SecureRuntimeConfig
 
 
 def ensure_entrypoint(entrypoint: Sequence[str]) -> None:
@@ -596,6 +596,44 @@ def ensure_egress_configured(
             detail={
                 "code": SandboxErrorCodes.INVALID_PARAMETER,
                 "message": "egress.image must be configured when networkPolicy is provided.",
+            },
+        )
+
+
+_GVISOR_NAT_INCOMPATIBLE_RUNTIMES = frozenset({"gvisor"})
+
+
+def ensure_egress_runtime_compatible(
+    network_policy: Optional["NetworkPolicy"],
+    secure_runtime: Optional["SecureRuntimeConfig"],
+) -> None:
+    """
+    Reject network_policy when the secure runtime lacks iptables nat table support.
+
+    gVisor's netstack does not implement the iptables nat table, which the egress
+    sidecar requires for DNS redirect (REDIRECT target on port 53).
+
+    Args:
+        network_policy: Optional network policy from the request.
+        secure_runtime: Optional secure runtime configuration from app config.
+
+    Raises:
+        HTTPException: When network_policy is provided with an incompatible runtime.
+    """
+    if not network_policy:
+        return
+    if secure_runtime is None or not secure_runtime.type:
+        return
+    if secure_runtime.type in _GVISOR_NAT_INCOMPATIBLE_RUNTIMES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": SandboxErrorCodes.INVALID_PARAMETER,
+                "message": (
+                    f"networkPolicy is not compatible with secure_runtime.type='{secure_runtime.type}': "
+                    f"gVisor does not support the iptables nat table required by the egress sidecar. "
+                    f"Use secure_runtime.type='kata' or remove networkPolicy."
+                ),
             },
         )
 
