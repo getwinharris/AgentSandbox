@@ -2,6 +2,20 @@
 
 Credential Vault 是 OpenSandbox 为沙箱内 Agent 和开发工具提供的出站凭证代理能力。真实凭证由宿主侧 SDK 写入 egress sidecar，沙箱进程只拿到假的或空的凭证值。当 Claude Code、Git、curl、包管理器或模型 API 客户端等工具发起被允许的 HTTPS 出站请求时，sidecar 会根据 Credential Vault binding 匹配请求，并在出站链路上注入所需的认证 header。这样工具可以保持原有使用方式，同时真实密钥不会进入沙箱环境变量、命令行、文件系统或日志，从而降低 prompt injection 或不可信代码导致的凭证外泄风险。
 
+## 前置条件
+
+- `opensandbox-server` >= 0.2.0
+- `egress` >= 1.1.1
+- Python SDK >= 0.1.11
+- JavaScript/TypeScript SDK >= 0.1.9
+- Go SDK >= 1.0.3
+- Kotlin SDK >= 1.0.13
+- C# SDK >= 0.1.3
+- Server 配置中设置了 `[egress].image`。
+- 创建沙箱时传入出站网络策略。
+- 创建沙箱时启用 Credential Proxy。
+- 沙箱镜像包含要运行的工具。运行 Claude Code 时，可以使用包含 Node.js 和 npm 的 OpenSandbox code-interpreter 镜像。
+
 ## 原理
 
 ![Credential Vault 请求流程](assets/credential-vault.png)
@@ -71,18 +85,12 @@ X-Client-Id: <client-id>
 X-Client-Secret: <client-secret>
 ```
 
-## 前置条件
-
-- Server 配置中设置了 `[egress].image`。
-- 创建沙箱时传入出站网络策略。
-- 创建沙箱时启用 Credential Proxy。
-- 沙箱镜像包含要运行的工具。运行 Claude Code 时，可以使用包含 Node.js 和 npm 的 OpenSandbox code-interpreter 镜像。
-
 ## Egress Sidecar 配置
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `OPENSANDBOX_EGRESS_CREDENTIAL_VAULT_REQUIRE_TLS` | 关闭 | 启用后（`true`/`1`/`on`），credential vault 写操作（create、patch、delete）要求请求通过 TLS 到达、来自 loopback 地址、或携带 `X-Forwarded-Proto: https` 头。关闭时（默认），只要通过认证的请求均被接受，不校验传输层安全。在 egress sidecar 可从非信任网络直接访问且没有 TLS 终止反向代理的部署中应启用此选项。 |
+
 
 ## SDK 快速对照
 

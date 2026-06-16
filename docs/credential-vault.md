@@ -2,6 +2,21 @@
 
 Credential Vault is OpenSandbox's outbound credential broker for sandboxed agents and developer tools. Real credentials are written to the egress sidecar by the host-side SDK, while the sandbox process only receives fake or empty credential values. When tools such as Claude Code, Git, curl, package managers, or model API clients make allowed outbound HTTPS requests, the sidecar matches the request against Credential Vault bindings and injects the required authentication headers on the way out. This lets existing tools keep their normal workflows while keeping real secrets out of the sandbox environment, command line, filesystem, and logs, reducing credential exfiltration risk from prompt injection or untrusted code.
 
+## Requirements
+
+- `opensandbox-server` >= 0.2.0
+- `egress` >= 1.1.1
+- Python SDK >= 0.1.11
+- JavaScript/TypeScript SDK >= 0.1.9
+- Kotlin SDK >= 1.0.13
+- Go SDK >= 1.0.3
+- C# SDK >= 0.1.3
+- Server config sets `[egress].image`.
+- Sandbox create request includes an outbound network policy.
+- Sandbox create request enables Credential Proxy.
+- The sandbox image has the tools you want to run. For Claude Code, use an image
+  with Node.js and npm, such as the OpenSandbox code-interpreter image.
+
 ## How It Works
 
 ![Credential Vault request flow](assets/credential-vault.png)
@@ -82,19 +97,12 @@ X-Client-Id: <client-id>
 X-Client-Secret: <client-secret>
 ```
 
-## Requirements
-
-- Server config sets `[egress].image`.
-- Sandbox create request includes an outbound network policy.
-- Sandbox create request enables Credential Proxy.
-- The sandbox image has the tools you want to run. For Claude Code, use an image
-  with Node.js and npm, such as the OpenSandbox code-interpreter image.
-
 ## Egress Sidecar Configuration
 
 | Environment variable | Default | Description |
 | --- | --- | --- |
 | `OPENSANDBOX_EGRESS_CREDENTIAL_VAULT_REQUIRE_TLS` | off | When enabled (`true`/`1`/`on`), credential vault write operations (create, patch, delete) require the request to arrive over TLS, from a loopback address, or with `X-Forwarded-Proto: https`. When disabled (default), any authenticated request is accepted regardless of transport. Enable this in deployments where the egress sidecar is directly reachable from untrusted networks without a TLS-terminating reverse proxy. |
+
 
 ## SDK Quick Reference
 
