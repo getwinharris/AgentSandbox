@@ -20,6 +20,7 @@ const EXACT: Record<string, string> = {
   "/single_host_network": "/architecture/single-host-network",
   "/kubernetes/development": "/kubernetes/deployment",
   "/server/readme": "/components/server",
+  "/server/development": "/components/server",
   "/specs/readme": "/api/",
   "/secure-container": "/guides/secure-container",
   "/pause-resume": "/guides/pause-resume",
@@ -37,8 +38,14 @@ function resolveLegacy(rawPath: string): string {
   if (p === "" || p === "/") return "/";
   if (EXACT[p]) return EXACT[p];
   if (p.startsWith("/oseps/")) return "/community/oseps";
-  // Collapse any nested legacy SDK route (incl. the old /sdks/sandbox/* and
-  // /sdks/mcp/* variants) to its top-level page, e.g. /sdks/kotlin, /sdks/mcp.
+  // Nested Kubernetes pages (charts, examples) all consolidated under /kubernetes/.
+  if (p.startsWith("/kubernetes/")) return "/kubernetes/";
+  // Code-interpreter SDKs keep a per-language page; just drop the leaf suffix.
+  if (p.startsWith("/sdks/code-interpreter/")) {
+    return p.replace(/\/(readme|development)$/, "");
+  }
+  // Collapse other nested legacy SDK routes (incl. old /sdks/sandbox/* and
+  // /sdks/mcp/* variants) to their top-level page, e.g. /sdks/kotlin, /sdks/mcp.
   const sdk = p.match(/^\/sdks\/(?:sandbox\/)?([^/]+)\//);
   if (sdk) return `/sdks/${sdk[1]}`;
   p = p.replace("/sdks/sandbox/", "/sdks/").replace(/\/(readme|development)$/, "");
