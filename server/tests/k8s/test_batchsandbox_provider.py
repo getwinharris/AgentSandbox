@@ -657,6 +657,31 @@ spec:
         assert resources["limits"] == {"cpu": "1", "memory": "1Gi"}
         assert resources["requests"] == {"cpu": "1", "memory": "1Gi"}
 
+    def test_create_workload_uses_separate_resource_requests(self, mock_k8s_client):
+        provider = BatchSandboxProvider(mock_k8s_client)
+        mock_k8s_client.create_custom_object.return_value = {
+            "metadata": {"name": "sandbox-test", "uid": "uid"}
+        }
+
+        provider.create_workload(
+            sandbox_id="test-id",
+            namespace="test-ns",
+            image_spec=ImageSpec(uri="python:3.11"),
+            entrypoint=["/bin/bash"],
+            env={},
+            resource_limits={"cpu": "2", "memory": "2Gi"},
+            resource_requests={"cpu": "500m", "memory": "512Mi"},
+            labels={},
+            expires_at=datetime(2025, 12, 31, tzinfo=timezone.utc),
+            execd_image="execd:latest",
+        )
+
+        body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
+        resources = body["spec"]["template"]["spec"]["containers"][0]["resources"]
+
+        assert resources["limits"] == {"cpu": "2", "memory": "2Gi"}
+        assert resources["requests"] == {"cpu": "500m", "memory": "512Mi"}
+
     def test_create_workload_handles_empty_resource_limits(self, mock_k8s_client):
         provider = BatchSandboxProvider(mock_k8s_client)
         mock_k8s_client.create_custom_object.return_value = {
@@ -1686,7 +1711,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=expires_at,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
             credential_proxy_enabled=True,
         )
 
@@ -1700,7 +1725,7 @@ class TestBatchSandboxProviderEgress:
         # Find sidecar container
         sidecar = next((c for c in containers if c["name"] == "egress"), None)
         assert sidecar is not None
-        assert sidecar["image"] == "opensandbox/egress:v1.1.0"
+        assert sidecar["image"] == "opensandbox/egress:v1.1.1"
 
         # Verify sidecar has environment variable
         env_vars = {e["name"]: e["value"] for e in sidecar.get("env", [])}
@@ -1764,7 +1789,7 @@ class TestBatchSandboxProviderEgress:
             execd_image="execd:latest",
             platform=PlatformSpec(os="windows", arch="amd64"),
             network_policy=NetworkPolicy(default_action="deny", egress=[]),
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1803,7 +1828,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=None,
             execd_image="execd:latest",
             network_policy=NetworkPolicy(default_action="deny", egress=[]),
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
             annotations={SANDBOX_EGRESS_AUTH_TOKEN_METADATA_KEY: "egress-token"},
             egress_auth_token="egress-token",
         )
@@ -1841,7 +1866,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=None,
             execd_image="execd:latest",
             network_policy=NetworkPolicy(default_action="deny", egress=[]),
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
             egress_mode=EGRESS_MODE_DNS_NFT,
         )
 
@@ -1881,7 +1906,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=expires_at,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1925,7 +1950,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=None,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1960,7 +1985,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=expires_at,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -2037,7 +2062,7 @@ class TestBatchSandboxProviderEgress:
             expires_at=expires_at,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -2127,7 +2152,7 @@ spec:
             expires_at=expires_at,
             execd_image="execd:latest",
             network_policy=network_policy,
-            egress_image="opensandbox/egress:v1.1.0",
+            egress_image="opensandbox/egress:v1.1.1",
         )
 
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
