@@ -56,6 +56,7 @@ class PoolConfigTest {
     fun `build keeps configured warmup readiness settings`() {
         val healthCheck: (Sandbox) -> Boolean = { true }
         val preparer = SandboxPreparer {}
+        val sandboxCreator = PooledSandboxCreator { "sandbox-id" }
         val config =
             PoolConfig.builder()
                 .poolName("test-pool")
@@ -74,6 +75,7 @@ class PoolConfigTest {
                 .warmupHealthCheck(healthCheck)
                 .warmupSandboxPreparer(preparer)
                 .warmupSkipHealthCheck()
+                .sandboxCreator(sandboxCreator)
                 .idleTimeout(Duration.ofMinutes(10))
                 .build()
 
@@ -87,6 +89,7 @@ class PoolConfigTest {
         assertSame(healthCheck, config.warmupHealthCheck)
         assertSame(preparer, config.warmupSandboxPreparer)
         assertEquals(true, config.warmupSkipHealthCheck)
+        assertSame(sandboxCreator, config.sandboxCreator)
         assertEquals(Duration.ofMinutes(10), config.idleTimeout)
     }
 

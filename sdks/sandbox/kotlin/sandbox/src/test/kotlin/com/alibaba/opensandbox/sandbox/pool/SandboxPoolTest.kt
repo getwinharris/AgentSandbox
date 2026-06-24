@@ -34,6 +34,7 @@ import com.alibaba.opensandbox.sandbox.domain.pool.PoolCreationSpec
 import com.alibaba.opensandbox.sandbox.domain.pool.PoolLifecycleState
 import com.alibaba.opensandbox.sandbox.domain.pool.PoolState
 import com.alibaba.opensandbox.sandbox.domain.pool.PoolStateStore
+import com.alibaba.opensandbox.sandbox.domain.pool.PooledSandboxCreator
 import com.alibaba.opensandbox.sandbox.domain.pool.SandboxPreparer
 import com.alibaba.opensandbox.sandbox.domain.pool.StoreCounters
 import com.alibaba.opensandbox.sandbox.infrastructure.pool.InMemoryPoolStateStore
@@ -503,6 +504,7 @@ class SandboxPoolTest {
     @Test
     fun `sandbox pool builder forwards acquire readiness settings into config`() {
         val healthCheck: (Sandbox) -> Boolean = { true }
+        val sandboxCreator = PooledSandboxCreator { "sandbox-id" }
         val pool =
             SandboxPool.builder()
                 .poolName("test-pool")
@@ -516,6 +518,7 @@ class SandboxPoolTest {
                 .acquireHealthCheck(healthCheck)
                 .acquireSkipHealthCheck()
                 .acquireMinRemainingTtl(Duration.ofSeconds(90))
+                .sandboxCreator(sandboxCreator)
                 .idleTimeout(Duration.ofMinutes(15))
                 .build()
 
@@ -528,6 +531,7 @@ class SandboxPoolTest {
         assertSame(healthCheck, config.acquireHealthCheck)
         assertEquals(true, config.acquireSkipHealthCheck)
         assertEquals(Duration.ofSeconds(90), config.acquireMinRemainingTtl)
+        assertSame(sandboxCreator, config.sandboxCreator)
         assertEquals(Duration.ofMinutes(15), config.idleTimeout)
     }
 
