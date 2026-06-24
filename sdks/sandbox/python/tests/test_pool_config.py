@@ -29,6 +29,7 @@ from opensandbox.pool import (
     InMemoryPoolStateStore,
     PoolConfig,
     PoolCreationSpec,
+    PooledSandboxCreateContext,
 )
 
 
@@ -71,7 +72,9 @@ def test_default_acquire_min_remaining_ttl_scales_for_short_idle_timeout() -> No
 
 
 def test_negative_acquire_min_remaining_ttl_rejected() -> None:
-    with pytest.raises(ValueError, match="acquire_min_remaining_ttl must be non-negative"):
+    with pytest.raises(
+        ValueError, match="acquire_min_remaining_ttl must be non-negative"
+    ):
         PoolConfig(**_sync_kwargs(), acquire_min_remaining_ttl=timedelta(seconds=-1))  # type: ignore[arg-type]
 
 
@@ -86,7 +89,9 @@ def test_explicit_acquire_min_remaining_ttl_at_or_above_idle_timeout_rejected() 
         )
 
 
-def test_async_explicit_acquire_min_remaining_ttl_at_or_above_idle_timeout_rejected() -> None:
+def test_async_explicit_acquire_min_remaining_ttl_at_or_above_idle_timeout_rejected() -> (
+    None
+):
     with pytest.raises(ValueError, match="strictly less than"):
         AsyncPoolConfig(  # type: ignore[arg-type]
             **_async_kwargs(),
@@ -112,6 +117,30 @@ def test_zero_acquire_min_remaining_ttl_opts_out() -> None:
         acquire_min_remaining_ttl=timedelta(0),
     )
     assert config.acquire_min_remaining_ttl == timedelta(0)
+
+
+def test_sync_pool_config_keeps_sandbox_creator() -> None:
+    def creator(_context: PooledSandboxCreateContext) -> str:
+        return "created-by-hook"
+
+    config = PoolConfig(
+        **_sync_kwargs(),  # type: ignore[arg-type]
+        sandbox_creator=creator,
+    )
+
+    assert config.sandbox_creator is creator
+
+
+def test_async_pool_config_keeps_sandbox_creator() -> None:
+    async def creator(_context: PooledSandboxCreateContext) -> str:
+        return "created-by-hook"
+
+    config = AsyncPoolConfig(
+        **_async_kwargs(),  # type: ignore[arg-type]
+        sandbox_creator=creator,
+    )
+
+    assert config.sandbox_creator is creator
 
 
 def test_sync_pool_facade_forwards_acquire_min_remaining_ttl() -> None:

@@ -22,6 +22,8 @@ from opensandbox.pool import (
     AsyncPoolConfig,
     InMemoryAsyncPoolStateStore,
     PoolCreationSpec,
+    PooledSandboxCreateContext,
+    PooledSandboxCreateReason,
     SandboxPoolAsync,
 )
 
@@ -65,7 +67,9 @@ async def test_async_reconcile_batch_failures_only_advance_backoff_once() -> Non
 
     assert state.failure_count == 10
     assert state.is_backoff_active(datetime.now(timezone.utc) + timedelta(seconds=29))
-    assert not state.is_backoff_active(datetime.now(timezone.utc) + timedelta(seconds=31))
+    assert not state.is_backoff_active(
+        datetime.now(timezone.utc) + timedelta(seconds=31)
+    )
 
 
 @pytest.mark.asyncio
@@ -151,6 +155,54 @@ async def test_async_acquire_direct_create_kills_and_closes_when_renew_fails() -
 
 
 @pytest.mark.asyncio
+async def test_async_acquire_direct_create_uses_sandbox_creator() -> None:
+    contexts: list[PooledSandboxCreateContext] = []
+    connected_kwargs: dict[str, Any] = {}
+
+    class CapturingAsyncSandbox(FakeAsyncSandbox):
+        @classmethod
+        async def connect(
+            cls, sandbox_id: str, *args: Any, **kwargs: Any
+        ) -> CapturingAsyncSandbox:
+            connected_kwargs.update(kwargs)
+            return cls(sandbox_id)
+
+    async def creator(context: PooledSandboxCreateContext) -> str:
+        contexts.append(context)
+        return "created-by-hook"
+
+    pool = SandboxPoolAsync(
+        pool_name="pool",
+        owner_id="owner-1",
+        max_idle=0,
+        state_store=InMemoryAsyncPoolStateStore(),
+        connection_config=ConnectionConfig(),
+        creation_spec=PoolCreationSpec(image="ubuntu:22.04"),
+        idle_timeout=timedelta(minutes=10),
+        sandbox_creator=creator,
+        sandbox_manager_factory=lambda config: _manager_factory(FakeAsyncManager()),
+        sandbox_factory=CapturingAsyncSandbox,  # type: ignore[arg-type]
+    )
+    await pool.start()
+    try:
+        sandbox = await pool.acquire(sandbox_timeout=timedelta(minutes=5))
+        fake_sandbox = cast(CapturingAsyncSandbox, sandbox)
+
+        assert sandbox.id == "created-by-hook"
+        assert fake_sandbox.renewed == [timedelta(minutes=5)]
+        assert len(contexts) == 1
+        assert contexts[0].pool_name == "pool"
+        assert contexts[0].owner_id == "owner-1"
+        assert contexts[0].idle_timeout == timedelta(minutes=10)
+        assert contexts[0].reason is PooledSandboxCreateReason.DIRECT_CREATE
+        assert isinstance(contexts[0].connection_config, ConnectionConfig)
+        assert connected_kwargs["connect_timeout"] == pool._config.acquire_ready_timeout
+        assert connected_kwargs["skip_health_check"] is False
+    finally:
+        await pool.shutdown(False)
+
+
+@pytest.mark.asyncio
 async def test_async_acquire_when_stopped_raises_pool_not_running() -> None:
     pool = _create_pool(max_idle=0)
 
@@ -192,7 +244,9 @@ async def test_async_start_overwrites_shared_max_idle_with_user_config() -> None
 
 
 @pytest.mark.asyncio
-async def test_async_resize_only_updates_target_without_immediate_reconcile_trigger() -> None:
+async def test_async_resize_only_updates_target_without_immediate_reconcile_trigger() -> (
+    None
+):
     pool = SandboxPoolAsync(
         pool_name="pool",
         owner_id="owner-1",
@@ -407,7 +461,9 @@ class FakeAsyncSandbox:
         return sandbox
 
     @classmethod
-    async def connect(cls, sandbox_id: str, *args: Any, **kwargs: Any) -> FakeAsyncSandbox:
+    async def connect(
+        cls, sandbox_id: str, *args: Any, **kwargs: Any
+    ) -> FakeAsyncSandbox:
         if sandbox_id.startswith("stale"):
             raise RuntimeError("stale sandbox")
         return cls(sandbox_id)
