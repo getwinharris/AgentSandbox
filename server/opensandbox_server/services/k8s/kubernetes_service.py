@@ -495,8 +495,9 @@ class KubernetesSandboxService(K8sDiagnosticsMixin, SandboxService, ExtensionSer
                 if isinstance(workload, dict):
                     annotations = workload.get("metadata", {}).get("annotations") or {}
                 else:
-                    metadata = getattr(workload, "metadata", None)
-                    annotations = getattr(metadata, "annotations", None) or {}
+                    md = getattr(workload, "metadata", None)
+                    raw_ann = getattr(md, "annotations", None) if md else None
+                    annotations = raw_ann if isinstance(raw_ann, dict) else {}
 
                 return CreateSandboxResponse(
                     id=sandbox_id,

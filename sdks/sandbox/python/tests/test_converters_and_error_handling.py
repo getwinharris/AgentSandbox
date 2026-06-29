@@ -341,6 +341,22 @@ def test_sandbox_model_converter_maps_platform_from_create_response() -> None:
     assert converted.extensions == {"opensandbox.extensions.custom-label": "中文数据"}
 
 
+def test_sandbox_model_converter_preserves_missing_metadata_default() -> None:
+    from opensandbox.api.lifecycle.models.sandbox import Sandbox
+    from opensandbox.api.lifecycle.models.sandbox_status import SandboxStatus
+
+    api_sandbox = Sandbox(
+        id="sbx-1",
+        status=SandboxStatus(state="Running"),
+        created_at=datetime(2025, 1, 1),
+        entrypoint=["/bin/sh"],
+    )
+
+    converted = SandboxModelConverter.to_sandbox_info(api_sandbox)
+    assert converted.metadata == {}
+    assert converted.extensions is None
+
+
 def test_sandbox_model_converter_supports_windows_platform_request() -> None:
     req = SandboxModelConverter.to_api_create_sandbox_request(
         spec=SandboxImageSpec("dockurr/windows:latest"),

@@ -46,6 +46,7 @@ from opensandbox.api.lifecycle.models import (
 )
 from opensandbox.api.lifecycle.models.create_sandbox_request import CreateSandboxRequest
 from opensandbox.api.lifecycle.models.image_spec import ImageSpec
+from opensandbox.api.lifecycle.types import Unset
 from opensandbox.models.sandboxes import (
     CreateSnapshotRequest,
     CredentialProxyConfig,
@@ -80,8 +81,6 @@ class SandboxModelConverter:
 
     @staticmethod
     def _additional_properties_to_dict(value: object) -> dict[str, str] | None:
-        from opensandbox.api.lifecycle.types import Unset
-
         if isinstance(value, Unset):
             return None
         if hasattr(value, "additional_properties"):
@@ -478,8 +477,11 @@ class SandboxModelConverter:
                 auth=auth,
             )
 
-        metadata = SandboxModelConverter._additional_properties_to_dict(
-            getattr(api_sandbox, "metadata", None)
+        metadata = (
+            SandboxModelConverter._additional_properties_to_dict(
+                getattr(api_sandbox, "metadata", None)
+            )
+            or {}
         )
         extensions = SandboxModelConverter._additional_properties_to_dict(
             getattr(api_sandbox, "extensions", None)
