@@ -1318,7 +1318,7 @@ func TestSandboxManager_GetSandboxInfo(t *testing.T) {
 	if got.ID != "sbx-get" {
 		assert.Fail(t, fmt.Sprintf("ID = %q, want %q", got.ID, "sbx-get"))
 	}
-	assert.Equal(t, "中文数据", got.Extensions["opensandbox.extensions.custom-label"])
+	require.Equal(t, "中文数据", got.Extensions["opensandbox.extensions.custom-label"])
 }
 
 func TestSandboxManager_KillSandbox(t *testing.T) {
