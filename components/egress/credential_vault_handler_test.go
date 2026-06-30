@@ -196,6 +196,7 @@ func TestCredentialVaultDeleteRequiresReady(t *testing.T) {
 
 func TestCredentialVaultWriteRequiresTLSOrLoopback(t *testing.T) {
 	t.Setenv(constants.EnvMitmproxyTransparent, "true")
+	t.Setenv(constants.EnvEgressMode, constants.PolicyDnsNft)
 	initial := testCredentialVaultPolicy(t, `{"defaultAction":"deny","egress":[{"action":"allow","target":"code.example.com"}]}`)
 	srv := &policyServer{
 		proxy:                     &stubProxy{updated: initial},
@@ -234,6 +235,7 @@ func TestCredentialVaultWriteRequiresTLSOrLoopback(t *testing.T) {
 
 func TestCredentialVaultWriteAllowsForwardedProto(t *testing.T) {
 	t.Setenv(constants.EnvMitmproxyTransparent, "true")
+	t.Setenv(constants.EnvEgressMode, constants.PolicyDnsNft)
 	t.Setenv(constants.EnvCredentialVaultTrustedProxyCIDRs, "198.51.100.0/24")
 	initial := testCredentialVaultPolicy(t, `{"defaultAction":"deny","egress":[{"action":"allow","target":"code.example.com"}]}`)
 	srv := &policyServer{
@@ -253,6 +255,7 @@ func TestCredentialVaultWriteAllowsForwardedProto(t *testing.T) {
 
 func TestCredentialVaultWriteRejectsForwardedProtoFromUntrustedPeer(t *testing.T) {
 	t.Setenv(constants.EnvMitmproxyTransparent, "true")
+	t.Setenv(constants.EnvEgressMode, constants.PolicyDnsNft)
 	t.Setenv(constants.EnvCredentialVaultTrustedProxyCIDRs, "203.0.113.0/24")
 	initial := testCredentialVaultPolicy(t, `{"defaultAction":"deny","egress":[{"action":"allow","target":"code.example.com"}]}`)
 	srv := &policyServer{
@@ -272,6 +275,7 @@ func TestCredentialVaultWriteRejectsForwardedProtoFromUntrustedPeer(t *testing.T
 
 func TestCredentialVaultWriteSkipsTLSCheckByDefault(t *testing.T) {
 	t.Setenv(constants.EnvMitmproxyTransparent, "true")
+	t.Setenv(constants.EnvEgressMode, constants.PolicyDnsNft)
 	initial := testCredentialVaultPolicy(t, `{"defaultAction":"deny","egress":[{"action":"allow","target":"code.example.com"}]}`)
 	srv := &policyServer{
 		proxy:           &stubProxy{updated: initial},
@@ -284,4 +288,22 @@ func TestCredentialVaultWriteSkipsTLSCheckByDefault(t *testing.T) {
 	srv.handleCredentialVault(w, req)
 
 	require.Equal(t, http.StatusCreated, w.Result().StatusCode)
+}
+
+func TestCredentialVaultWriteRejectsDNSOnlyEnforcement(t *testing.T) {
+	t.Setenv(constants.EnvMitmproxyTransparent, "true")
+	t.Setenv(constants.EnvEgressMode, constants.PolicyDnsOnly)
+	initial := testCredentialVaultPolicy(t, `{"defaultAction":"deny","egress":[{"action":"allow","target":"code.example.com"}]}`)
+	srv := &policyServer{
+		proxy:           &stubProxy{updated: initial},
+		credentialVault: credentialvault.NewStore(nil, func() bool { return true }),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/credential-vault", strings.NewReader(`{"credentials":[],"bindings":[]}`))
+	req.RemoteAddr = "127.0.0.1:4321"
+	w := httptest.NewRecorder()
+	srv.handleCredentialVault(w, req)
+
+	require.Equal(t, http.StatusPreconditionFailed, w.Result().StatusCode)
+	require.Contains(t, w.Body.String(), "dns+nft")
 }

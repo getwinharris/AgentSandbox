@@ -507,8 +507,9 @@ class CreateSandboxRequest(BaseModel):
                 self.snapshot_id = None
             return self
 
-        if self.credential_proxy and self.credential_proxy.enabled and self.network_policy is None:
-            raise ValueError("credentialProxy.enabled requires networkPolicy.")
+        if self.credential_proxy and self.credential_proxy.enabled:
+            if self.network_policy is None:
+                raise ValueError("credentialProxy.enabled requires networkPolicy.")
 
         has_image = self.image is not None and bool(self.image.uri.strip())
         has_snapshot = bool((self.snapshot_id or "").strip())
