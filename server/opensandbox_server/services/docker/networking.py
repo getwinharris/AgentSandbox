@@ -67,6 +67,18 @@ def _running_inside_docker_container() -> bool:
     return os.path.exists("/.dockerenv")
 
 
+def _docker_ipv6_disable_sysctls_supported() -> bool:
+    """Return True when the host exposes the IPv6 procfs knobs used by Docker sysctls."""
+    return all(
+        os.path.exists(path)
+        for path in (
+            "/proc/sys/net/ipv6/conf/all/disable_ipv6",
+            "/proc/sys/net/ipv6/conf/default/disable_ipv6",
+            "/proc/sys/net/ipv6/conf/lo/disable_ipv6",
+        )
+    )
+
+
 HOST_NETWORK_MODE = "host"
 BRIDGE_NETWORK_MODE = "bridge"
 EGRESS_SIDECAR_LABEL = "opensandbox.io/egress-sidecar-for"
@@ -425,12 +437,18 @@ class DockerNetworkingMixin:
                 f"{runtime_volume_name}:{OPENSANDBOX_RUNTIME_MOUNT_PATH}:rw"
             ]
         if self.app_config.egress.disable_ipv6:
-            # Optional: disable IPv6 in the shared namespace when egress.disable_ipv6 is set.
-            sidecar_host_config_kwargs["sysctls"] = {
-                "net.ipv6.conf.all.disable_ipv6": 1,
-                "net.ipv6.conf.default.disable_ipv6": 1,
-                "net.ipv6.conf.lo.disable_ipv6": 1,
-            }
+            if _docker_ipv6_disable_sysctls_supported():
+                # Optional: disable IPv6 in the shared namespace when egress.disable_ipv6 is set.
+                sidecar_host_config_kwargs["sysctls"] = {
+                    "net.ipv6.conf.all.disable_ipv6": 1,
+                    "net.ipv6.conf.default.disable_ipv6": 1,
+                    "net.ipv6.conf.lo.disable_ipv6": 1,
+                }
+            else:
+                logger.warning(
+                    "sandbox=%s | skip egress IPv6 sysctls because host procfs entries are unavailable",
+                    sandbox_id,
+                )
 
         sidecar_host_config = self.docker_client.api.create_host_config(
             **sidecar_host_config_kwargs
