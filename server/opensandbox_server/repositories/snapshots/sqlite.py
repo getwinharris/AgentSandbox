@@ -264,6 +264,7 @@ class SQLiteSnapshotRepository:
                 """
             )
             self._migrate_add_namespace(conn)
+            self._migrate_namespace_nullable(conn)
 
     @staticmethod
     def _migrate_add_namespace(conn: sqlite3.Connection) -> None:
@@ -274,6 +275,42 @@ class SQLiteSnapshotRepository:
             conn.execute(
                 "ALTER TABLE snapshots ADD COLUMN namespace TEXT DEFAULT NULL"
             )
+
+    @staticmethod
+    def _migrate_namespace_nullable(conn: sqlite3.Connection) -> None:
+        """Convert namespace from NOT NULL to nullable for non-tenant mode."""
+        rows = conn.execute("PRAGMA table_info(snapshots)").fetchall()
+        for row in rows:
+            if row["name"] == "namespace" and row["notnull"]:
+                conn.executescript(
+                    """
+                    CREATE TABLE snapshots_tmp AS SELECT * FROM snapshots;
+                    DROP TABLE snapshots;
+                    CREATE TABLE snapshots (
+                        id TEXT PRIMARY KEY,
+                        source_sandbox_id TEXT NOT NULL,
+                        namespace TEXT DEFAULT NULL,
+                        name TEXT,
+                        description TEXT,
+                        restore_config TEXT NOT NULL,
+                        state TEXT NOT NULL,
+                        reason TEXT,
+                        message TEXT,
+                        last_transition_at TEXT,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    );
+                    INSERT INTO snapshots SELECT * FROM snapshots_tmp;
+                    DROP TABLE snapshots_tmp;
+                    CREATE INDEX IF NOT EXISTS idx_snapshots_source_sandbox_id
+                        ON snapshots(source_sandbox_id);
+                    CREATE INDEX IF NOT EXISTS idx_snapshots_state
+                        ON snapshots(state);
+                    CREATE INDEX IF NOT EXISTS idx_snapshots_created_at
+                        ON snapshots(created_at DESC);
+                    """
+                )
+                break
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path)
