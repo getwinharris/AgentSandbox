@@ -72,6 +72,13 @@ class _CacheEntry:
     ttl: float
 
 
+class _FlightEvent(threading.Event):
+    """Event with attached result/error for singleflight propagation."""
+
+    result: Optional[TenantEntry] = None
+    error: Optional[Exception] = None
+
+
 class HTTPTenantProvider:
     """TenantProvider backed by a remote HTTP endpoint with per-key TTL cache.
 
@@ -84,9 +91,7 @@ class HTTPTenantProvider:
         self._config = config
         self._lock = threading.Lock()
         self._cache: Dict[str, _CacheEntry] = {}
-        self._inflight: Dict[str, threading.Event] = {}
-        self._inflight_result: Dict[str, Optional[TenantEntry]] = {}
-        self._inflight_error: Dict[str, Exception] = {}
+        self._inflight: Dict[str, _FlightEvent] = {}
         self._ready = False
         self._callbacks: List[Callable[[List[TenantEntry]], None]] = []
         self._client: Optional[httpx.Client] = None
@@ -165,37 +170,33 @@ class HTTPTenantProvider:
         provider outages / 5xx errors don't masquerade as invalid credentials.
         """
         with self._lock:
-            event = self._inflight.get(api_key)
-            if event is not None:
+            flight = self._inflight.get(api_key)
+            if flight is not None:
                 is_leader = False
             else:
-                event = threading.Event()
-                self._inflight[api_key] = event
-                self._inflight_result[api_key] = None
-                self._inflight_error.pop(api_key, None)
+                flight = _FlightEvent()
+                self._inflight[api_key] = flight
                 is_leader = True
 
         if not is_leader:
-            event.wait(timeout=self._config.timeout_seconds)
+            flight.wait(timeout=self._config.timeout_seconds)
+            if flight.error is not None:
+                raise flight.error
             with self._lock:
                 cached = self._cache.get(api_key)
-                error = self._inflight_error.get(api_key)
             if cached:
                 return cached.tenant
-            if error is not None:
-                raise error
             raise TenantProviderUnavailable("Timed out waiting for in-flight tenant lookup")
 
         try:
             return self._do_fetch(api_key, now)
         except Exception as e:
-            with self._lock:
-                self._inflight_error[api_key] = e
+            flight.error = e
             raise
         finally:
             with self._lock:
                 self._inflight.pop(api_key, None)
-            event.set()
+            flight.set()
 
     def _do_fetch(self, api_key: str, now: float) -> Optional[TenantEntry]:
         """GET the endpoint for a single api_key. Returns TenantEntry or raises."""
