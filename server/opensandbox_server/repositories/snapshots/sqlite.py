@@ -101,7 +101,7 @@ class SQLiteSnapshotRepository:
         clauses: list[str] = []
         params: list[object] = []
 
-        if query.namespace:
+        if query.namespace is not None:
             clauses.append("namespace = ?")
             params.append(query.namespace)
 

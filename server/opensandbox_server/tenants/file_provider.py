@@ -54,6 +54,9 @@ def _parse_tenants_file(path: Path) -> List[TenantEntry]:
         namespace = raw["namespace"]
         api_keys = raw["api_keys"]
 
+        if not namespace or not isinstance(namespace, str):
+            raise ValueError(f"Tenant '{name}' namespace must be a non-empty string.")
+
         if not isinstance(api_keys, list):
             raise ValueError(f"Tenant '{name}' api_keys must be a list, got {type(api_keys).__name__}.")
 

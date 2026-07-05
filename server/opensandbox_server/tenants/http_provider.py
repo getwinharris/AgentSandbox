@@ -214,7 +214,9 @@ class HTTPTenantProvider:
         resp.raise_for_status()
 
         data = resp.json()
-        namespace = data["namespace"]
+        namespace = (data.get("namespace") or "").strip()
+        if not namespace:
+            raise ValueError("HTTP tenant endpoint returned empty namespace for key")
         ttl = float(data.get("ttl", 30))
 
         entry = TenantEntry(
