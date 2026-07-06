@@ -51,19 +51,19 @@ infrastructure.
 
 Expected identity values:
 
-- Repository: `alibaba/OpenSandbox`
+- Repository: `opensandbox-group/OpenSandbox`
 - OIDC issuer: `https://token.actions.githubusercontent.com`
-- Source release workflow: `alibaba/OpenSandbox/.github/workflows/release-generic.yml`
-- Component image workflow: `alibaba/OpenSandbox/.github/workflows/publish-components.yml`
-- Server image workflow: `alibaba/OpenSandbox/.github/workflows/publish-server.yml`
-- CLI package workflow: `alibaba/OpenSandbox/.github/workflows/publish-cli.yml`
-- Python package workflow: `alibaba/OpenSandbox/.github/workflows/publish-python-sdks.yml`
-- JavaScript package workflow: `alibaba/OpenSandbox/.github/workflows/publish-js-sdks.yml`
-- C# package workflow: `alibaba/OpenSandbox/.github/workflows/publish-csharp-sdks.yml`
-- Helm chart workflow: `alibaba/OpenSandbox/.github/workflows/publish-helm-chart.yml`
+- Source release workflow: `opensandbox-group/OpenSandbox/.github/workflows/release-generic.yml`
+- Component image workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-components.yml`
+- Server image workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-server.yml`
+- CLI package workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-cli.yml`
+- Python package workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-python-sdks.yml`
+- JavaScript package workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-js-sdks.yml`
+- C# package workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-csharp-sdks.yml`
+- Helm chart workflow: `opensandbox-group/OpenSandbox/.github/workflows/publish-helm-chart.yml`
 
 If you run the release workflows from a downstream fork, replace
-`alibaba/OpenSandbox` in the verification commands with that fork's
+`opensandbox-group/OpenSandbox` in the verification commands with that fork's
 `owner/repository` identity.
 
 Private signing material is not stored in GitHub Releases, Docker Hub, ACR,
@@ -83,7 +83,7 @@ Download the signed source archive and checksum file:
 
 ```bash
 gh release download "$TAG" \
-  --repo alibaba/OpenSandbox \
+  --repo opensandbox-group/OpenSandbox \
   --pattern "opensandbox-${SAFE_TAG}.tar.gz" \
   --pattern "SHA256SUMS"
 ```
@@ -98,16 +98,16 @@ Verify the source archive attestation:
 
 ```bash
 gh attestation verify "opensandbox-${SAFE_TAG}.tar.gz" \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/release-generic.yml
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/release-generic.yml
 ```
 
 Verify the checksum file attestation:
 
 ```bash
 gh attestation verify SHA256SUMS \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/release-generic.yml
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/release-generic.yml
 ```
 
 The Generic Release workflow is started with `workflow_dispatch`, so its
@@ -138,9 +138,9 @@ Verify the registry provenance attestation:
 
 ```bash
 gh attestation verify "oci://${IMAGE_REF}" \
-  --repo alibaba/OpenSandbox \
+  --repo opensandbox-group/OpenSandbox \
   --bundle-from-oci \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/publish-components.yml
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/publish-components.yml
 ```
 
 For the server image, use `docker.io/opensandbox/server` and the server workflow:
@@ -173,8 +173,8 @@ Python and CLI packages:
 ```bash
 python -m pip download opensandbox-server==0.1.13 --no-deps
 gh attestation verify opensandbox_server-0.1.13*.whl \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/publish-server.yml \
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/publish-server.yml \
   --source-ref refs/tags/server/v0.1.13
 ```
 
@@ -183,8 +183,8 @@ JavaScript packages:
 ```bash
 npm pack @alibaba-group/opensandbox@0.1.7
 gh attestation verify alibaba-group-opensandbox-0.1.7.tgz \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/publish-js-sdks.yml \
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/publish-js-sdks.yml \
   --source-ref refs/tags/js/sandbox/v0.1.7
 ```
 
@@ -192,8 +192,8 @@ C# packages:
 
 ```bash
 gh attestation verify Alibaba.OpenSandbox.1.0.0.nupkg \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/publish-csharp-sdks.yml \
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/publish-csharp-sdks.yml \
   --source-ref refs/tags/csharp/sandbox/v1.0.0
 ```
 
@@ -201,11 +201,11 @@ Helm charts:
 
 ```bash
 gh release download helm/opensandbox/0.1.0 \
-  --repo alibaba/OpenSandbox \
+  --repo opensandbox-group/OpenSandbox \
   --pattern 'opensandbox-*.tgz'
 gh attestation verify opensandbox-*.tgz \
-  --repo alibaba/OpenSandbox \
-  --signer-workflow alibaba/OpenSandbox/.github/workflows/publish-helm-chart.yml
+  --repo opensandbox-group/OpenSandbox \
+  --signer-workflow opensandbox-group/OpenSandbox/.github/workflows/publish-helm-chart.yml
 ```
 
 When Helm charts are released through `workflow_dispatch`, their provenance
