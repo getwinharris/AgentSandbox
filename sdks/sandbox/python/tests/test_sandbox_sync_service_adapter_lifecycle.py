@@ -21,7 +21,7 @@ from opensandbox.config.connection_sync import ConnectionConfigSync
 from opensandbox.sync.adapters.sandboxes_adapter import SandboxesAdapterSync
 
 
-def test_sync_get_sandbox_endpoint_logs_debug_and_not_error_on_failure(
+def test_sync_get_sandbox_endpoint_logs_warning_and_not_error_on_failure(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     def _boom(*, sandbox_id, port, client, use_server_proxy=False):
@@ -34,20 +34,24 @@ def test_sync_get_sandbox_endpoint_logs_debug_and_not_error_on_failure(
 
     adapter = SandboxesAdapterSync(ConnectionConfigSync())
 
-    with caplog.at_level("DEBUG", logger="opensandbox.sync.adapters.sandboxes_adapter"):
+    with caplog.at_level(
+        "WARNING", logger="opensandbox.sync.adapters.sandboxes_adapter"
+    ):
         with pytest.raises(Exception) as exc_info:
             adapter.get_sandbox_endpoint("sbx-1", 8080)
 
     assert "endpoint exploded" in str(exc_info.value)
     assert not [r for r in caplog.records if r.levelname == "ERROR"]
-    debug_messages = [r.getMessage() for r in caplog.records if r.levelname == "DEBUG"]
+    debug_messages = [
+        r.getMessage() for r in caplog.records if r.levelname == "WARNING"
+    ]
     assert any(
         "Failed to retrieve sandbox endpoint for sandbox sbx-1" in msg
         for msg in debug_messages
     )
 
 
-def test_sync_resume_sandbox_logs_debug_and_not_error_on_failure(
+def test_sync_resume_sandbox_logs_warning_and_not_error_on_failure(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     def _boom(*, client, sandbox_id):
@@ -60,11 +64,19 @@ def test_sync_resume_sandbox_logs_debug_and_not_error_on_failure(
 
     adapter = SandboxesAdapterSync(ConnectionConfigSync())
 
-    with caplog.at_level("DEBUG", logger="opensandbox.sync.adapters.sandboxes_adapter"):
+    with caplog.at_level(
+        "WARNING", logger="opensandbox.sync.adapters.sandboxes_adapter"
+    ):
         with pytest.raises(Exception) as exc_info:
             adapter.resume_sandbox("sbx-2")
 
     assert "resume exploded" in str(exc_info.value)
     assert not [r for r in caplog.records if r.levelname == "ERROR"]
-    debug_messages = [r.getMessage() for r in caplog.records if r.levelname == "DEBUG"]
-    assert any("Failed to resume sandbox: sbx-2" in msg for msg in debug_messages)
+    debug_messages = [
+        r.getMessage() for r in caplog.records if r.levelname == "WARNING"
+    ]
+    assert any(
+        "Failed to resume sandbox sbx-2: resume exploded" in msg
+        for msg in debug_messages
+    )
+    assert all(r.exc_info is None for r in caplog.records if r.levelname == "WARNING")

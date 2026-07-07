@@ -186,10 +186,10 @@ class SandboxesAdapter(Sandboxes):
             return response
 
         except Exception as e:
-            logger.debug(
-                "Failed to create sandbox with startup source: %s",
+            logger.warning(
+                "Failed to create sandbox with startup source %s: %s",
                 spec.image if spec is not None else snapshot_id,
-                exc_info=e,
+                e,
             )
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
@@ -214,7 +214,7 @@ class SandboxesAdapter(Sandboxes):
             return SandboxModelConverter.to_sandbox_info(parsed)
 
         except Exception as e:
-            logger.debug(f"Failed to get sandbox info: {sandbox_id}", exc_info=e)
+            logger.warning("Failed to get sandbox info %s: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def list_sandboxes(self, filter: SandboxFilter) -> PagedSandboxInfos:
@@ -254,7 +254,7 @@ class SandboxesAdapter(Sandboxes):
             return SandboxModelConverter.to_paged_sandbox_infos(parsed)
 
         except Exception as e:
-            logger.debug("Failed to list sandboxes", exc_info=e)
+            logger.warning("Failed to list sandboxes: %s", e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def patch_sandbox_metadata(
@@ -283,7 +283,7 @@ class SandboxesAdapter(Sandboxes):
             )
             return SandboxModelConverter.to_sandbox_info(parsed)
         except Exception as e:
-            logger.debug("Failed to patch sandbox %s metadata", sandbox_id, exc_info=e)
+            logger.warning("Failed to patch sandbox %s metadata: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def create_snapshot(
@@ -329,7 +329,7 @@ class SandboxesAdapter(Sandboxes):
             )
             return SandboxModelConverter.to_snapshot_info(parsed)
         except Exception as e:
-            logger.debug("Failed to get snapshot info: %s", snapshot_id, exc_info=e)
+            logger.warning("Failed to get snapshot info %s: %s", snapshot_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def list_snapshots(self, filter: SnapshotFilter) -> PagedSnapshotInfos:
@@ -356,7 +356,7 @@ class SandboxesAdapter(Sandboxes):
             )
             return SandboxModelConverter.to_paged_snapshot_infos(parsed)
         except Exception as e:
-            logger.debug("Failed to list snapshots", exc_info=e)
+            logger.warning("Failed to list snapshots: %s", e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def delete_snapshot(self, snapshot_id: str) -> None:
@@ -372,7 +372,7 @@ class SandboxesAdapter(Sandboxes):
             )
             handle_api_error(response_obj, f"Delete snapshot {snapshot_id}")
         except Exception as e:
-            logger.debug("Failed to delete snapshot: %s", snapshot_id, exc_info=e)
+            logger.warning("Failed to delete snapshot %s: %s", snapshot_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def get_sandbox_endpoint(
@@ -420,9 +420,10 @@ class SandboxesAdapter(Sandboxes):
             return SandboxModelConverter.to_sandbox_endpoint(parsed)
 
         except Exception as e:
-            logger.debug(
-                f"Failed to retrieve sandbox endpoint for sandbox {sandbox_id}",
-                exc_info=e,
+            logger.warning(
+                "Failed to retrieve sandbox endpoint for sandbox %s: %s",
+                sandbox_id,
+                e,
             )
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
@@ -468,9 +469,10 @@ class SandboxesAdapter(Sandboxes):
             return SandboxModelConverter.to_sandbox_endpoint(parsed)
 
         except Exception as e:
-            logger.debug(
-                f"Failed to retrieve signed sandbox endpoint for sandbox {sandbox_id}",
-                exc_info=e,
+            logger.warning(
+                "Failed to retrieve signed sandbox endpoint for sandbox %s: %s",
+                sandbox_id,
+                e,
             )
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
@@ -494,7 +496,7 @@ class SandboxesAdapter(Sandboxes):
             logger.info(f"Initiated pause for sandbox: {sandbox_id}")
 
         except Exception as e:
-            logger.debug(f"Failed to initiate pause sandbox: {sandbox_id}", exc_info=e)
+            logger.warning("Failed to initiate pause sandbox %s: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def resume_sandbox(self, sandbox_id: str) -> None:
@@ -517,7 +519,7 @@ class SandboxesAdapter(Sandboxes):
             logger.info(f"Initiated resume for sandbox: {sandbox_id}")
 
         except Exception as e:
-            logger.debug(f"Failed initiate resume sandbox: {sandbox_id}", exc_info=e)
+            logger.warning("Failed to resume sandbox %s: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def renew_sandbox_expiration(
@@ -563,7 +565,7 @@ class SandboxesAdapter(Sandboxes):
             return renew_response
 
         except Exception as e:
-            logger.debug(f"Failed to renew sandbox {sandbox_id} expiration", exc_info=e)
+            logger.warning("Failed to renew sandbox %s expiration: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
 
     async def kill_sandbox(self, sandbox_id: str) -> None:
@@ -586,5 +588,5 @@ class SandboxesAdapter(Sandboxes):
             logger.info(f"Successfully terminated sandbox: {sandbox_id}")
 
         except Exception as e:
-            logger.debug(f"Failed to terminate sandbox: {sandbox_id}", exc_info=e)
+            logger.warning("Failed to terminate sandbox %s: %s", sandbox_id, e)
             raise ExceptionConverter.to_sandbox_exception(e) from e
