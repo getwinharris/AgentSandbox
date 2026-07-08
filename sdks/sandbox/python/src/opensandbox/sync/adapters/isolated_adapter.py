@@ -19,8 +19,6 @@ Synchronous isolated session adapter implementation.
 
 import json
 import logging
-from collections.abc import Iterator
-from contextlib import contextmanager
 
 import httpx
 
@@ -37,7 +35,6 @@ from opensandbox.models.isolated import (
     IsolatedRunOpts,
     IsolatedSessionInfo,
     IsolatedSessionState,
-    IsolatedWorkspaceSpec,
 )
 from opensandbox.models.sandboxes import SandboxEndpoint
 from opensandbox.sync.adapters.converter.execution_event_dispatcher import (
@@ -45,6 +42,7 @@ from opensandbox.sync.adapters.converter.execution_event_dispatcher import (
 )
 from opensandbox.sync.services.isolated import (
     IsolationServiceSync,
+    IsolationServiceSyncMixin,
     IsolationSessionSync,
 )
 
@@ -123,8 +121,12 @@ class IsolationSessionHandleSync(IsolationSessionSync):
         return self._adapter._delete(self._info.session_id)
 
 
-class IsolatedSessionsAdapterSync(IsolationServiceSync):
-    """Synchronous adapter for isolated session endpoints."""
+class IsolatedSessionsAdapterSync(IsolationServiceSyncMixin, IsolationServiceSync):
+    """Synchronous adapter for isolated session endpoints.
+
+    ``run_once``/``session`` are inherited from
+    :class:`IsolationServiceSyncMixin`.
+    """
 
     CREATE_PATH = "/v1/isolated/session"
     SESSION_PATH = "/v1/isolated/session/{session_id}"
@@ -283,42 +285,3 @@ class IsolatedSessionsAdapterSync(IsolationServiceSync):
             return IsolatedCapabilities(**response.json())
         except Exception as e:
             raise ExceptionConverter.to_sandbox_exception(e) from e
-
-    def run_once(
-        self,
-        code: str,
-        *,
-        workspace: str,
-        workspace_mode: str | None = None,
-        opts: IsolatedRunOpts | None = None,
-        handlers: ExecutionHandlersSync | None = None,
-        profile: str | None = None,
-        share_net: bool | None = None,
-    ) -> Execution:
-        request = CreateIsolatedSessionRequest(
-            workspace=IsolatedWorkspaceSpec(path=workspace, mode=workspace_mode),
-            profile=profile,
-            share_net=share_net,
-        )
-        session = self.create(request)
-        try:
-            return session.run(code, opts=opts, handlers=handlers)
-        finally:
-            try:
-                session.delete()
-            except Exception:
-                logger.warning("failed to delete isolated session %s", session.session_id)
-
-    @contextmanager
-    def session(
-        self,
-        request: CreateIsolatedSessionRequest,
-    ) -> Iterator[IsolationSessionHandleSync]:
-        session = self.create(request)
-        try:
-            yield session
-        finally:
-            try:
-                session.delete()
-            except Exception:
-                logger.warning("failed to delete isolated session %s", session.session_id)

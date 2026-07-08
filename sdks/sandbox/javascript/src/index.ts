@@ -146,7 +146,6 @@ export type {
 } from "./models/filesystem.js";
 export type { SandboxFiles } from "./services/filesystem.js";
 export type { IsolationService, IsolationSession, RunOnceOpts } from "./services/isolatedSessions.js";
-export { runOnce, withSession } from "./services/isolatedSessions.js";
 export type {
   CreateIsolatedSessionRequest,
   IsolatedWorkspaceSpec,

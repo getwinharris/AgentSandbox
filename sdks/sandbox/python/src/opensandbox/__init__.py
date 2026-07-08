@@ -99,7 +99,6 @@ For advanced code execution with persistent contexts, see the separate
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
-from opensandbox.isolation_helpers import isolation_session, run_once
 from opensandbox.manager import SandboxManager
 from opensandbox.pool import (
     AcquirePolicy,
@@ -116,7 +115,6 @@ from opensandbox.pool import (
 )
 from opensandbox.sandbox import Sandbox
 from opensandbox.sync import SandboxManagerSync, SandboxPoolSync, SandboxSync
-from opensandbox.sync.isolation_helpers import isolation_session_sync, run_once_sync
 
 try:
     __version__ = _pkg_version("opensandbox")
@@ -141,8 +139,4 @@ __all__ = [
     "PoolCreationSpec",
     "InMemoryAsyncPoolStateStore",
     "InMemoryPoolStateStore",
-    "run_once",
-    "isolation_session",
-    "run_once_sync",
-    "isolation_session_sync",
 ]

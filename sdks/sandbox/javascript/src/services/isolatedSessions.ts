@@ -49,35 +49,21 @@ export interface RunOnceOpts {
 export interface IsolationService {
   create(request: CreateIsolatedSessionRequest): Promise<IsolationSession>;
   capabilities(): Promise<IsolatedCapabilities>;
-}
-
-export async function runOnce(
-  service: IsolationService,
-  code: string,
-  workspace: string,
-  opts?: RunOnceOpts,
-): Promise<CommandExecution> {
-  const session = await service.create({
-    workspace: { path: workspace, mode: opts?.workspaceMode },
-    profile: opts?.profile,
-    share_net: opts?.shareNet,
-  });
-  try {
-    return await session.run(code, opts?.runOpts, opts?.handlers, opts?.signal);
-  } finally {
-    try { await session.delete(); } catch { /* best-effort cleanup */ }
-  }
-}
-
-export async function withSession<T>(
-  service: IsolationService,
-  request: CreateIsolatedSessionRequest,
-  fn: (session: IsolationSession) => Promise<T>,
-): Promise<T> {
-  const session = await service.create(request);
-  try {
-    return await fn(session);
-  } finally {
-    try { await session.delete(); } catch { /* best-effort cleanup */ }
-  }
+  /**
+   * Create a session, run `code`, and delete the session (auto-cleanup).
+   * Cleanup is best-effort and never masks the original error.
+   */
+  runOnce(
+    code: string,
+    workspace: string,
+    opts?: RunOnceOpts,
+  ): Promise<CommandExecution>;
+  /**
+   * Create a session, invoke `fn`, and delete the session on exit
+   * regardless of whether `fn` throws.
+   */
+  withSession<T>(
+    request: CreateIsolatedSessionRequest,
+    fn: (session: IsolationSession) => Promise<T>,
+  ): Promise<T>;
 }

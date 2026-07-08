@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { IsolatedSessionsAdapter } from "../dist/internal.js";
-import { runOnce, withSession } from "../dist/index.js";
 
 function createAdapter(mockFetch) {
   return new IsolatedSessionsAdapter({
@@ -58,7 +57,7 @@ describe("runOnce", () => {
     const { mockFn, calls } = mockFetchForSession("sess-1");
     const adapter = createAdapter(mockFn);
 
-    const result = await runOnce(adapter, "echo hello", "/workspace");
+    const result = await adapter.runOnce("echo hello", "/workspace");
 
     assert.deepStrictEqual(calls, ["create", "run", "delete"]);
     assert.ok(result);
@@ -68,7 +67,7 @@ describe("runOnce", () => {
     const { mockFn, calls } = mockFetchForSession("sess-2", { runFails: true });
     const adapter = createAdapter(mockFn);
 
-    await assert.rejects(() => runOnce(adapter, "bad", "/workspace"));
+    await assert.rejects(() => adapter.runOnce("bad", "/workspace"));
     assert.deepStrictEqual(calls, ["create", "run", "delete"]);
   });
 
@@ -76,7 +75,7 @@ describe("runOnce", () => {
     const { mockFn, calls } = mockFetchForSession("sess-3", { deleteFails: true });
     const adapter = createAdapter(mockFn);
 
-    const result = await runOnce(adapter, "echo ok", "/workspace");
+    const result = await adapter.runOnce("echo ok", "/workspace");
 
     assert.deepStrictEqual(calls, ["create", "run", "delete"]);
     assert.ok(result);
@@ -88,8 +87,7 @@ describe("withSession", () => {
     const { mockFn, calls } = mockFetchForSession("sess-ws");
     const adapter = createAdapter(mockFn);
 
-    const result = await withSession(
-      adapter,
+    const result = await adapter.withSession(
       { workspace: { path: "/workspace" } },
       async (session) => {
         assert.strictEqual(session.sessionId, "sess-ws");
@@ -106,7 +104,7 @@ describe("withSession", () => {
     const adapter = createAdapter(mockFn);
 
     await assert.rejects(
-      () => withSession(adapter, { workspace: { path: "/workspace" } }, async () => {
+      () => adapter.withSession({ workspace: { path: "/workspace" } }, async () => {
         throw new Error("callback error");
       }),
       { message: "callback error" },

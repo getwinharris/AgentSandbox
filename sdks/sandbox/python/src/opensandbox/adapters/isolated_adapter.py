@@ -21,8 +21,6 @@ Adapter for /v1/isolated/* endpoints using direct httpx + SSE streaming.
 
 import json
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 
 import httpx
 
@@ -42,11 +40,14 @@ from opensandbox.models.isolated import (
     IsolatedRunOpts,
     IsolatedSessionInfo,
     IsolatedSessionState,
-    IsolatedWorkspaceSpec,
 )
 from opensandbox.models.sandboxes import SandboxEndpoint
 from opensandbox.services.filesystem import Filesystem
-from opensandbox.services.isolated import IsolationService, IsolationSession
+from opensandbox.services.isolated import (
+    IsolationService,
+    IsolationServiceMixin,
+    IsolationSession,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,8 +121,11 @@ class IsolationSessionHandle(IsolationSession):
         return await self._adapter._delete(self._info.session_id)
 
 
-class IsolatedSessionsAdapter(IsolationService):
-    """Async adapter for isolated session endpoints (/v1/isolated/*)."""
+class IsolatedSessionsAdapter(IsolationServiceMixin, IsolationService):
+    """Async adapter for isolated session endpoints (/v1/isolated/*).
+
+    ``run_once``/``session`` are inherited from :class:`IsolationServiceMixin`.
+    """
 
     CREATE_PATH = "/v1/isolated/session"
     SESSION_PATH = "/v1/isolated/session/{session_id}"
@@ -292,42 +296,3 @@ class IsolatedSessionsAdapter(IsolationService):
             return IsolatedCapabilities(**data)
         except Exception as e:
             raise ExceptionConverter.to_sandbox_exception(e) from e
-
-    async def run_once(
-        self,
-        code: str,
-        *,
-        workspace: str,
-        workspace_mode: str | None = None,
-        opts: IsolatedRunOpts | None = None,
-        handlers: ExecutionHandlers | None = None,
-        profile: str | None = None,
-        share_net: bool | None = None,
-    ) -> Execution:
-        request = CreateIsolatedSessionRequest(
-            workspace=IsolatedWorkspaceSpec(path=workspace, mode=workspace_mode),
-            profile=profile,
-            share_net=share_net,
-        )
-        session = await self.create(request)
-        try:
-            return await session.run(code, opts=opts, handlers=handlers)
-        finally:
-            try:
-                await session.delete()
-            except Exception:
-                logger.warning("failed to delete isolated session %s", session.session_id)
-
-    @asynccontextmanager
-    async def session(
-        self,
-        request: CreateIsolatedSessionRequest,
-    ) -> AsyncIterator[IsolationSessionHandle]:
-        session = await self.create(request)
-        try:
-            yield session
-        finally:
-            try:
-                await session.delete()
-            except Exception:
-                logger.warning("failed to delete isolated session %s", session.session_id)
