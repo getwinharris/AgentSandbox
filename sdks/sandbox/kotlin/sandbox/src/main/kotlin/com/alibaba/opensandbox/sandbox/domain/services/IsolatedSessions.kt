@@ -17,6 +17,7 @@
 package com.alibaba.opensandbox.sandbox.domain.services
 
 import com.alibaba.opensandbox.sandbox.domain.models.execd.executions.Execution
+import com.alibaba.opensandbox.sandbox.domain.models.execd.isolated.BindMount
 import com.alibaba.opensandbox.sandbox.domain.models.execd.isolated.CreateIsolatedSessionRequest
 import com.alibaba.opensandbox.sandbox.domain.models.execd.isolated.IsolatedCapabilities
 import com.alibaba.opensandbox.sandbox.domain.models.execd.isolated.IsolatedRunRequest
@@ -57,6 +58,7 @@ interface IsolationService {
         timeoutSeconds: Int? = null,
         profile: String? = null,
         shareNet: Boolean? = null,
+        binds: List<BindMount>? = null,
     ): Execution {
         val session =
             create(
@@ -64,6 +66,7 @@ interface IsolationService {
                     workspace = IsolatedWorkspaceSpec(path = workspace, mode = workspaceMode),
                     profile = profile,
                     shareNet = shareNet,
+                    binds = binds,
                 ),
             )
         try {

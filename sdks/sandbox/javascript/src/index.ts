@@ -152,6 +152,7 @@ export type {
   CreateIsolatedSessionRequest,
   IsolatedWorkspaceSpec,
   EnvPassthroughSpec,
+  BindMount,
   IsolatedSessionInfo,
   IsolatedSessionState,
   IsolatedRunOpts,

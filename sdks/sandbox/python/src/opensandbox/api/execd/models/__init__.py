@@ -16,6 +16,7 @@
 
 """Contains all the data models used in inputs/outputs"""
 
+from .bind_mount import BindMount
 from .capabilities_response import CapabilitiesResponse
 from .chmod_files_body import ChmodFilesBody
 from .code_context import CodeContext
@@ -68,6 +69,7 @@ from .session_state_status import SessionStateStatus
 from .upload_file_body import UploadFileBody
 
 __all__ = (
+    "BindMount",
     "CapabilitiesResponse",
     "ChmodFilesBody",
     "CodeContext",

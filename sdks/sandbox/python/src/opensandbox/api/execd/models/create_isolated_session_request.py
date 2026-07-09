@@ -27,6 +27,7 @@ from ..models.create_isolated_session_request_uid_mode import CreateIsolatedSess
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
+    from ..models.bind_mount import BindMount
     from ..models.env_passthrough_spec import EnvPassthroughSpec
     from ..models.isolated_workspace_spec import IsolatedWorkspaceSpec
 
@@ -41,6 +42,10 @@ class CreateIsolatedSessionRequest:
         workspace (IsolatedWorkspaceSpec):
         profile (CreateIsolatedSessionRequestProfile | Unset):
         extra_writable (list[str] | Unset):
+        binds (list[BindMount] | Unset): Additional host paths bind-mounted into the namespace with an explicit source-
+            to-destination mapping. Unlike extra_writable (which mounts source==destination read-write), each entry may map
+            a distinct destination path and be mounted read-only. The source path of every entry must fall within the
+            configured writable allowlist.
         share_net (bool | Unset):
         env_passthrough (EnvPassthroughSpec | Unset):
         uid (int | Unset):
@@ -54,6 +59,7 @@ class CreateIsolatedSessionRequest:
     workspace: IsolatedWorkspaceSpec
     profile: CreateIsolatedSessionRequestProfile | Unset = UNSET
     extra_writable: list[str] | Unset = UNSET
+    binds: list[BindMount] | Unset = UNSET
     share_net: bool | Unset = UNSET
     env_passthrough: EnvPassthroughSpec | Unset = UNSET
     uid: int | Unset = UNSET
@@ -72,6 +78,13 @@ class CreateIsolatedSessionRequest:
         extra_writable: list[str] | Unset = UNSET
         if not isinstance(self.extra_writable, Unset):
             extra_writable = self.extra_writable
+
+        binds: list[dict[str, Any]] | Unset = UNSET
+        if not isinstance(self.binds, Unset):
+            binds = []
+            for binds_item_data in self.binds:
+                binds_item = binds_item_data.to_dict()
+                binds.append(binds_item)
 
         share_net = self.share_net
 
@@ -100,6 +113,8 @@ class CreateIsolatedSessionRequest:
             field_dict["profile"] = profile
         if extra_writable is not UNSET:
             field_dict["extra_writable"] = extra_writable
+        if binds is not UNSET:
+            field_dict["binds"] = binds
         if share_net is not UNSET:
             field_dict["share_net"] = share_net
         if env_passthrough is not UNSET:
@@ -117,6 +132,7 @@ class CreateIsolatedSessionRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
+        from ..models.bind_mount import BindMount
         from ..models.env_passthrough_spec import EnvPassthroughSpec
         from ..models.isolated_workspace_spec import IsolatedWorkspaceSpec
 
@@ -131,6 +147,15 @@ class CreateIsolatedSessionRequest:
             profile = CreateIsolatedSessionRequestProfile(_profile)
 
         extra_writable = cast(list[str], d.pop("extra_writable", UNSET))
+
+        _binds = d.pop("binds", UNSET)
+        binds: list[BindMount] | Unset = UNSET
+        if _binds is not UNSET:
+            binds = []
+            for binds_item_data in _binds:
+                binds_item = BindMount.from_dict(binds_item_data)
+
+                binds.append(binds_item)
 
         share_net = d.pop("share_net", UNSET)
 
@@ -158,6 +183,7 @@ class CreateIsolatedSessionRequest:
             workspace=workspace,
             profile=profile,
             extra_writable=extra_writable,
+            binds=binds,
             share_net=share_net,
             env_passthrough=env_passthrough,
             uid=uid,
