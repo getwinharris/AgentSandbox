@@ -141,12 +141,7 @@ class TestBatchSandboxProvider:
             execd_image="execd:latest",
         )
 
-        assert result == {
-            "name": "test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
         # Verify API call
         call_args = mock_k8s_client.create_custom_object.call_args
@@ -874,12 +869,7 @@ spec:
             execd_image="execd:latest",
         )
 
-        assert result == {
-            "name": "test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
     # ===== Workload List Tests =====
 
@@ -1334,12 +1324,7 @@ spec:
         )
 
         # Should succeed and return workload info
-        assert result == {
-            "name": "sandbox-test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "sandbox-test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
         # Verify poolRef is used
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1371,12 +1356,7 @@ spec:
         )
 
         # Should succeed and return workload info
-        assert result == {
-            "name": "sandbox-test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "sandbox-test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
         # Verify poolRef is used
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1406,12 +1386,7 @@ spec:
             extensions={"poolRef": "my-pool"},
         )
 
-        assert result == {
-            "name": "sandbox-test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "sandbox-test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
         # Verify the call
         body = mock_k8s_client.create_custom_object.call_args.kwargs["body"]
@@ -1645,9 +1620,7 @@ spec:
         task_template = body["spec"]["taskTemplate"]
         assert task_template["spec"]["process"]["env"] == [{"name": "VERSION", "value": "11"}]
 
-    def test_create_workload_poolref_none_entrypoint_no_env_omits_task_template(
-        self, mock_k8s_client
-    ):
+    def test_create_workload_poolref_none_entrypoint_no_env_omits_task_template(self, mock_k8s_client):
         """When entrypoint is None and env is empty, taskTemplate is omitted.
 
         SDK pool mode callers omit entrypoint entirely (None), expecting the pool's
@@ -2664,12 +2637,7 @@ spec:
             volumes=volumes,
         )
 
-        assert result == {
-            "name": "test-id",
-            "uid": "test-uid",
-            "apiVersion": "sandbox.opensandbox.io/v1alpha1",
-            "kind": "BatchSandbox",
-        }
+        assert result == {"name": "test-id", "uid": "test-uid", "apiVersion": "sandbox.opensandbox.io/v1alpha1", "kind": "BatchSandbox"}
 
     def test_create_workload_poolref_rejects_platform(self, mock_k8s_client):
         provider = BatchSandboxProvider(mock_k8s_client)
@@ -3009,3 +2977,67 @@ spec:
         assert by_path["/path/to/skills"].get("subPath") == "skill-hub/publish"
         assert by_path["/path/to/draft"]["name"] == "skills"
         assert by_path["/path/to/draft"].get("subPath") == "skill-hub/draft"
+
+    def test_apply_volumes_to_pod_spec_same_pvc_multiple_mounts_readwrite(self, mock_k8s_client):
+        """Shared PVC mounts with read_only=False should keep source-level readOnly false."""
+        from opensandbox_server.api.schema import Volume, PVC
+
+        pod_spec = {
+            "containers": [{"name": "main", "volumeMounts": []}],
+            "volumes": [],
+        }
+        volumes = [
+            Volume(
+                name="skills",
+                pvc=PVC(claim_name="oss-pvc-rw"),
+                mount_path="/path/to/skills",
+                sub_path="skill-hub/publish",
+                read_only=False,
+            ),
+            Volume(
+                name="draft",
+                pvc=PVC(claim_name="oss-pvc-rw"),
+                mount_path="/path/to/draft",
+                sub_path="skill-hub/draft",
+                read_only=False,
+            ),
+        ]
+
+        apply_volumes_to_pod_spec(pod_spec, volumes)
+
+        assert len(pod_spec["volumes"]) == 1
+        shared_volume = next((v for v in pod_spec["volumes"] if v["name"] == "skills"), None)
+        assert shared_volume is not None
+        assert shared_volume["persistentVolumeClaim"]["claimName"] == "oss-pvc-rw"
+        assert shared_volume["persistentVolumeClaim"]["readOnly"] is False
+
+        mounts = pod_spec["containers"][0]["volumeMounts"]
+        assert len(mounts) == 2
+        assert all(mount["name"] == "skills" for mount in mounts)
+        assert all(mount["readOnly"] is False for mount in mounts)
+
+    def test_apply_volumes_to_pod_spec_same_pvc_mixed_read_only_raises(self, mock_k8s_client):
+        """Shared PVC mounts with mixed read_only values should fail fast."""
+        from opensandbox_server.api.schema import Volume, PVC
+
+        pod_spec = {
+            "containers": [{"name": "main", "volumeMounts": []}],
+            "volumes": [],
+        }
+        volumes = [
+            Volume(
+                name="skills",
+                pvc=PVC(claim_name="oss-pvc-mixed"),
+                mount_path="/path/to/skills",
+                read_only=False,
+            ),
+            Volume(
+                name="draft",
+                pvc=PVC(claim_name="oss-pvc-mixed"),
+                mount_path="/path/to/draft",
+                read_only=True,
+            ),
+        ]
+
+        with pytest.raises(ValueError, match="mixed read_only values"):
+            apply_volumes_to_pod_spec(pod_spec, volumes)
