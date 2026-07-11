@@ -21,7 +21,11 @@ on:
       - 'helm/**'  # Format: helm/<component>/<app_version>, e.g., helm/opensandbox-controller/0.1.0
 
 jobs:
+  release-preflight:
+    uses: ./.github/workflows/release-preflight.yml
+
   publish:
+    needs: release-preflight
     runs-on: ubuntu-latest
     permissions:
       contents: write
