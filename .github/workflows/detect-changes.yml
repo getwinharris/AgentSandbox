@@ -45,33 +45,45 @@ jobs:
               [file.filename, file.previous_filename].filter(Boolean),
             );
 
+            const workflowChanged = (path, caller) =>
+              path === ".github/workflows/detect-changes.yml" ||
+              path === `.github/workflows/${caller}`;
+
             const matchers = {
-              server: (path) => path.startsWith("server/"),
+              server: (path) =>
+                workflowChanged(path, "server-test.yml") ||
+                path.startsWith("server/"),
               kubernetes: (path) =>
-                path.startsWith("kubernetes/") &&
-                !path.startsWith("kubernetes/docs/"),
+                workflowChanged(path, "kubernetes-test.yml") ||
+                (path.startsWith("kubernetes/") &&
+                  !path.startsWith("kubernetes/docs/")),
               "real-e2e": (path) =>
+                workflowChanged(path, "real-e2e.yml") ||
                 path.startsWith("server/opensandbox_server/") ||
                 path.startsWith("components/execd/") ||
                 path.startsWith("components/egress/") ||
                 path.startsWith("sdks/") ||
                 path.startsWith("tests/"),
               egress: (path) =>
+                workflowChanged(path, "egress-test.yaml.yml") ||
                 path.startsWith("components/egress/") ||
                 path.startsWith("components/internal/"),
               "kubernetes-mini-e2e": (path) =>
-                path === ".github/workflows/kubernetes-nightly-build.yml" ||
+                workflowChanged(path, "kubernetes-nightly-build.yml") ||
                 path === "scripts/python-k8s-e2e.sh" ||
                 path === "scripts/python-k8s-e2e-ingress.sh" ||
                 path === "scripts/common/kubernetes-e2e.sh" ||
                 path.startsWith("kubernetes/charts/"),
               ingress: (path) =>
+                workflowChanged(path, "ingress-test.yaml") ||
                 path.startsWith("components/ingress/") ||
                 path.startsWith("components/internal/"),
               execd: (path) =>
+                workflowChanged(path, "execd-test.yml") ||
                 path.startsWith("components/execd/") ||
                 path.startsWith("components/internal/"),
               sdk: (path) =>
+                workflowChanged(path, "sdk-tests.yml") ||
                 path.startsWith("cli/") ||
                 path.startsWith("sdks/") ||
                 path.startsWith("specs/"),
