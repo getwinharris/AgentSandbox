@@ -60,7 +60,12 @@ type CreateIsolatedSessionRequest struct {
 // ShareNet, EnvPassthrough, Uid, Gid, UidMode, IdleTimeoutSeconds) are populated
 // only when the info is built by IsolationAttach against an execd build that
 // echoes creation parameters on GET /v1/isolated/session/{id}. Older execd
-// builds and the POST /v1/isolated/session create response leave them zero.
+// builds and the POST /v1/isolated/session create response leave them zero
+// (or nil, for pointer fields).
+//
+// IdleTimeoutSeconds is a pointer so callers can distinguish "execd did not
+// echo the field" (nil, e.g. older execd) from "session was created with
+// idle GC disabled" (non-nil zero).
 type IsolatedSessionInfo struct {
 	SessionID string    `json:"session_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -75,7 +80,7 @@ type IsolatedSessionInfo struct {
 	Uid                *uint32                `json:"uid,omitempty"`
 	Gid                *uint32                `json:"gid,omitempty"`
 	UidMode            string                 `json:"uid_mode,omitempty"`
-	IdleTimeoutSeconds int                    `json:"idle_timeout_seconds,omitempty"`
+	IdleTimeoutSeconds *int                   `json:"idle_timeout_seconds,omitempty"`
 }
 
 // IsolatedSessionState represents the current state of an isolated session.
@@ -84,6 +89,10 @@ type IsolatedSessionInfo struct {
 // creation parameters on GET /v1/isolated/session/{id}. The echoed fields
 // are optional; older execd builds omit them and clients must tolerate
 // their absence.
+//
+// IdleTimeoutSeconds is a pointer so callers can distinguish "execd did not
+// echo the field" (nil, e.g. older execd) from "session was created with
+// idle GC disabled" (non-nil zero).
 type IsolatedSessionState struct {
 	Status               string    `json:"status"`
 	CreatedAt            time.Time `json:"created_at"`
@@ -100,7 +109,7 @@ type IsolatedSessionState struct {
 	Uid                *uint32                `json:"uid,omitempty"`
 	Gid                *uint32                `json:"gid,omitempty"`
 	UidMode            string                 `json:"uid_mode,omitempty"`
-	IdleTimeoutSeconds int                    `json:"idle_timeout_seconds,omitempty"`
+	IdleTimeoutSeconds *int                   `json:"idle_timeout_seconds,omitempty"`
 }
 
 // IsolatedSessionSummary describes a single isolated session in a list response.

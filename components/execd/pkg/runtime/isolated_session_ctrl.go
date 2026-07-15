@@ -155,6 +155,17 @@ func (r *IsolatedRunner) CreateIsolatedSession(opts *IsolatedSessionOptions) (st
 		return "", err
 	}
 
+	// Normalize empty/omitted fields to the effective config execd will
+	// actually apply. GetIsolatedSession echoes s.opts on attach so a
+	// stateless client can rebuild a handle from just the sessionId;
+	// echoing the raw create request (with empty strings for unset
+	// fields) would surface "unknown" for a session that is in fact
+	// running with a concrete profile/mode. Applying the same defaults
+	// here as (*isolatedSession).start would apply keeps the echo
+	// aligned with the effective config without changing runtime
+	// behavior.
+	normalizeIsolatedOptions(opts)
+
 	if err := os.MkdirAll(opts.WorkspacePath, 0o755); err != nil {
 		return "", fmt.Errorf("create workspace: %w", err)
 	}
@@ -647,4 +658,33 @@ func resolveSymlinks(p string) string {
 // shellescape wraps s in single quotes, escaping embedded single quotes.
 func shellescape(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+// normalizeIsolatedOptions fills in the effective values for fields that
+// (*isolatedSession).start would otherwise substitute silently, so that
+// GetIsolatedSession echoes back the configuration execd is actually
+// running with. Only empty/omitted string fields are rewritten; explicit
+// values (including unknown enum strings) are left untouched so that
+// start() surfaces them as errors as before.
+//
+// Kept in sync with the switch statements in (*isolatedSession).start.
+func normalizeIsolatedOptions(opts *IsolatedSessionOptions) {
+	if opts == nil {
+		return
+	}
+	if opts.Profile == "" {
+		opts.Profile = string(isolation.ProfileStrict)
+	}
+	// start() treats any non-rw/non-ro string as overlay, but only "" is
+	// really "unset" from the caller's perspective. Unknown enum values
+	// are left in place so a future normalize→start mismatch is loud.
+	if opts.WorkspaceMode == "" {
+		opts.WorkspaceMode = string(isolation.WorkspaceOverlay)
+	}
+	if opts.EnvPassthroughMode == "" {
+		opts.EnvPassthroughMode = string(isolation.EnvModeDeny)
+	}
+	if opts.UidMode == "" {
+		opts.UidMode = string(isolation.UidModeSetpriv)
+	}
 }

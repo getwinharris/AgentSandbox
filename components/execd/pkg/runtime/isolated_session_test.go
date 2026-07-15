@@ -232,6 +232,47 @@ func TestGetIsolatedSession_ReturnsCreationParams(t *testing.T) {
 	}
 }
 
+// TestGetIsolatedSession_EchoesEffectiveDefaults verifies that a session
+// created with omitted Profile/WorkspaceMode/EnvPassthroughMode/UidMode
+// is echoed back with the effective values execd actually applied, not
+// the empty strings the caller sent. This lets a stateless client
+// (attaching by sessionId only) rebuild handle info that matches the
+// running configuration.
+func TestGetIsolatedSession_EchoesEffectiveDefaults(t *testing.T) {
+	runner := newTestRunner(t)
+
+	// Bare-minimum create request: only workspace path is required.
+	opts := &IsolatedSessionOptions{
+		WorkspacePath: filepath.Join(t.TempDir(), "ws"),
+		// Profile / WorkspaceMode / EnvPassthroughMode / UidMode all omitted.
+	}
+
+	id, err := runner.CreateIsolatedSession(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer runner.DeleteIsolatedSession(id)
+
+	state, err := runner.GetIsolatedSession(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Each of these must be the effective value, not "".
+	if state.Profile != "strict" {
+		t.Errorf("Profile = %q, want strict (execd default)", state.Profile)
+	}
+	if state.WorkspaceMode != "overlay" {
+		t.Errorf("WorkspaceMode = %q, want overlay (execd default)", state.WorkspaceMode)
+	}
+	if state.EnvPassthroughMode != "deny" {
+		t.Errorf("EnvPassthroughMode = %q, want deny (execd default)", state.EnvPassthroughMode)
+	}
+	if state.UidMode != "setpriv" {
+		t.Errorf("UidMode = %q, want setpriv (execd default)", state.UidMode)
+	}
+}
+
 func TestDeleteIsolatedSession_NotFound(t *testing.T) {
 	runner := newTestRunner(t)
 	err := runner.DeleteIsolatedSession("nonexistent")

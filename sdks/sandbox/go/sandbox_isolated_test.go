@@ -338,7 +338,8 @@ func TestIsolationAttach_PopulatesFullInfo(t *testing.T) {
 	require.NotNil(t, info.Gid)
 	require.Equal(t, uint32(1000), *info.Gid)
 	require.Equal(t, "userns", info.UidMode)
-	require.Equal(t, 600, info.IdleTimeoutSeconds)
+	require.NotNil(t, info.IdleTimeoutSeconds)
+	require.Equal(t, 600, *info.IdleTimeoutSeconds)
 
 	require.NotNil(t, session.Files())
 }
@@ -397,7 +398,7 @@ func TestIsolationAttach_ToleratesMissingCreationParams(t *testing.T) {
 	require.True(t, info.Uid == nil)
 	require.True(t, info.Gid == nil)
 	require.Equal(t, "", info.UidMode)
-	require.Equal(t, 0, info.IdleTimeoutSeconds)
+	require.True(t, info.IdleTimeoutSeconds == nil, "older execd omitted idle_timeout_seconds — expect nil, not zero-value")
 
 	// Run/Get/Delete must still work through the handle (they only need the sessionID).
 	state, err := session.Get(context.Background())
@@ -426,6 +427,43 @@ func TestIsolationAttach_ToleratesMissingCreationParams(t *testing.T) {
 // TestIsolationAttach_NotFound verifies that a 404 from the server surfaces
 // as an *APIError with StatusCode 404, matching the error type used by
 // IsolatedGet for a missing session.
+// TestIsolationAttach_PreservesIdleTimeoutZero verifies that a session
+// created with idle_timeout_seconds=0 (idle GC disabled — the long-window
+// stateless-recovery configuration) round-trips through attach as a
+// non-nil pointer to 0, distinct from nil (which means "older execd
+// omitted the field").
+func TestIsolationAttach_PreservesIdleTimeoutZero(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v1/isolated/session/sess-zero-idle" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, `{
+				"status": "active",
+				"created_at": "2026-07-14T00:00:00Z",
+				"last_run_at": "2026-07-14T00:00:00Z",
+				"profile": "strict",
+				"workspace": {"path": "/workspace", "mode": "rw"},
+				"idle_timeout_seconds": 0
+			}`)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	execd := NewExecdClient(srv.URL, "test-key")
+	sb := &Sandbox{id: "sbx-test", execd: execd}
+
+	session, err := sb.IsolationAttach(context.Background(), "sess-zero-idle")
+	require.NoError(t, err)
+	require.NotNil(t, session)
+
+	info := session.Info()
+	require.NotNil(t, info.IdleTimeoutSeconds,
+		"idle_timeout_seconds:0 must decode as non-nil (explicit no-idle-GC), not as nil")
+	require.Equal(t, 0, *info.IdleTimeoutSeconds)
+}
+
 func TestIsolationAttach_NotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/v1/isolated/session/missing" {
