@@ -32,6 +32,13 @@ import (
 // instead to control individual call timeouts.
 const defaultTimeout = 0
 
+// streamResponseHeaderTimeout bounds how long an SSE request waits for the
+// server to send response headers after the connection is established. It does
+// NOT bound reading the (potentially long-lived) event stream body. Without it,
+// a server that accepts the connection but never sends headers would hang the
+// stream forever for callers using context.Background().
+const streamResponseHeaderTimeout = 30 * time.Second
+
 // Client is the base HTTP client shared by LifecycleClient and EgressClient.
 type Client struct {
 	baseURL    string
@@ -60,14 +67,24 @@ type Client struct {
 //     dropped by a load balancer while idle would stall the stream until it
 //     times out. Each stream therefore uses a fresh, non-pooled connection.
 //
-// Connection setup is still bounded by the transport's DialTimeout and
-// TLSHandshakeTimeout; only the (unbounded) body read is uncapped.
+// Connection setup is still bounded by the transport's DialTimeout,
+// TLSHandshakeTimeout, and ResponseHeaderTimeout (the wait for response
+// headers); only the (unbounded) body read is uncapped.
 func (c *Client) streamHTTPClient() *http.Client {
 	c.streamOnce.Do(func() {
 		sc := &http.Client{} // Timeout: 0 -> no overall request timeout
 		if tr, ok := c.httpClient.Transport.(*http.Transport); ok && tr != nil {
 			clone := tr.Clone()
 			clone.DisableKeepAlives = true // do not pool/reuse stream connections
+			// Bound only the "connected -> first response header" phase.
+			// DialTimeout/TLSHandshakeTimeout do not cover waiting for response
+			// headers, so without this a server that accepts the connection but
+			// never sends headers would hang forever for context.Background()
+			// callers. The SSE body read stays uncapped (Client.Timeout == 0).
+			// Only set it when unset, to preserve an explicit caller value.
+			if clone.ResponseHeaderTimeout == 0 {
+				clone.ResponseHeaderTimeout = streamResponseHeaderTimeout
+			}
 			sc.Transport = clone
 		} else {
 			// Custom RoundTripper: reuse it as-is (cannot toggle keep-alives).

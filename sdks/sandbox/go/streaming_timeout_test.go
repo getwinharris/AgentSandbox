@@ -75,7 +75,42 @@ func TestStreaming_UsesNonPooledClient(t *testing.T) {
 	tr, ok := sc.Transport.(*http.Transport)
 	require.True(t, ok, "streaming transport should be *http.Transport")
 	require.True(t, tr.DisableKeepAlives, "streaming client must disable keep-alive (no connection pooling)")
+	require.Equal(t, streamResponseHeaderTimeout, tr.ResponseHeaderTimeout,
+		"streaming client must bound the wait for response headers")
 
 	// The normal (non-streaming) client keeps its overall timeout and pooling.
 	require.Equal(t, 30*time.Second, client.client.httpClient.Timeout, "non-streaming client keeps its request timeout")
+}
+
+// TestStreaming_HeaderTimeoutBounded verifies that when the server accepts the
+// connection but never sends response headers, the stream fails within a bounded
+// time instead of hanging forever — even for a context.Background() caller that
+// provides no deadline of its own. It also confirms an explicitly-configured
+// ResponseHeaderTimeout is preserved (not overwritten by the default).
+func TestStreaming_HeaderTimeoutBounded(t *testing.T) {
+	// Server accepts the request but blocks without ever writing headers.
+	block := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-block
+	}))
+	defer srv.Close()
+	defer close(block)
+
+	// Inject a client whose transport has a short ResponseHeaderTimeout; the
+	// streaming client clones it and must keep this explicit value.
+	tr := DefaultTransport()
+	tr.ResponseHeaderTimeout = 200 * time.Millisecond
+	client := NewExecdClient(srv.URL, "tok", WithHTTPClient(&http.Client{Transport: tr}))
+
+	done := make(chan error, 1)
+	go func() {
+		done <- client.WatchMetrics(context.Background(), func(e StreamEvent) error { return nil })
+	}()
+
+	select {
+	case err := <-done:
+		require.Error(t, err, "stream must fail when the server never sends response headers")
+	case <-time.After(5 * time.Second):
+		t.Fatal("stream hung waiting for response headers; ResponseHeaderTimeout not enforced")
+	}
 }
